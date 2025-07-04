@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+pydantic
+transformers
+git+https://github.com/superannotateai/generated_text_detector.git@v1.1.0
+torch
