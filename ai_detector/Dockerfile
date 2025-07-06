@@ -5,7 +5,7 @@ RUN apt-get update && \
       git \
       build-essential \
       && rm -rf /var/lib/apt/lists/*
-      
+
 WORKDIR /app
 
 COPY requirements.txt .
@@ -15,4 +15,4 @@ COPY main.py .
 
 EXPOSE 8000
 
-CMD ["python", "main.py"]
+CMD ["gunicorn", "main:app", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--workers", "2"]
