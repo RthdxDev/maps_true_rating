@@ -1,0 +1,4 @@
+fastapi
+uvicorn
+yandex-cloud-ml-sdk
+pydantic
