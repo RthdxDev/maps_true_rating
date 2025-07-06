@@ -1,7 +1,0 @@
-services:
-  ai-detector:
-    build: .
-    container_name: ai-detector
-    restart: unless-stopped
-    ports:
-      - "8000:8000"
