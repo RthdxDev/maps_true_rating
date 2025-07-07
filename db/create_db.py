@@ -7,11 +7,11 @@ from psycopg import AsyncConnection
 
 async def create_tables():
     conn: AsyncConnection = await psycopg.AsyncConnection.connect(
-        host=os.getenv("DB_HOST", "localhost"),
-        port=os.getenv("DB_PORT", "5432"),
-        dbname=os.getenv("DB_NAME", "renal_database"),
-        user=os.getenv("DB_USER", "renal"),
-        password=os.getenv("DB_PASSWORD", "renal")
+        host=os.getenv("DB_HOST"),
+        port=os.getenv("DB_PORT"),
+        dbname=os.getenv("DB_NAME"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD")
     )
     async with conn.cursor() as cur:
         await cur.execute('''
@@ -46,8 +46,8 @@ async def create_tables():
             );
             CREATE TABLE IF NOT EXISTS reviews (
                 id VARCHAR(128) PRIMARY KEY,
-                id_place VARCHAR(32) NOT NULL,
-                id_user VARCHAR(32) NULL,
+                place_id VARCHAR(32) NOT NULL,
+                user_id VARCHAR(32) NULL,
                 feedback TEXT,
                 date DATE,
                 bot_prob FLOAT,
