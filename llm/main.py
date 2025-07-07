@@ -10,7 +10,7 @@ class GenerateRequest(BaseModel):
     max_tokens: int = 128
 
 class GenerateResponse(BaseModel):
-    result: str
+    probability: str
 
 
 YANDEX_API_KEY = os.environ.get("YANDEX_API_KEY")
@@ -25,13 +25,33 @@ executor = concurrent.futures.ThreadPoolExecutor(max_workers=WORKERS)
 
 app = FastAPI(title="YandexGPT API Service")
 
+system_prompt = """Вам на вход предоставлен комментарий пользователя. Ваша задача — оценить степень его необъективности (субъективности) и вернуть единственное вещественное число от 0.0 до 1.0, равное вероятности того, что комментарий не является объективным.
+
+При анализе учитывайте следующие признаки необъективности:
+1. Эмоциональная или оценочная лексика (например: «ужасно», «превосходно», «абсолютно глупо»).
+2. Личные местоимения и выражения мнения без фактов («я считаю», «мне кажется», «по моему»).
+3. Оскорбительные или уничижительные высказывания («идиот», «тупица» и т. п.).
+4. Необоснованные обобщения («все», «никто», «всегда», «никогда») без конкретных данных.
+5. Спекуляции и предположения, не подкреплённые фактами («должно быть», «вероятно»).
+
+Выход:
+— Единственное число от 0.0 (полностью объективно) до 1.0 (полностью субъективно).
+— Никакого дополнительного текста.
+
+Пример:
+Комментарий: «Эта статья просто отвратительная, автор — полный некомпетент»
+→ 0.92
+
+Текста комментария:
+"""
+
 def predict_sync(comment: str, max_tokens: int = 128) -> str:
     sdk = YCloudML(folder_id=FOLDER_ID, auth=YANDEX_API_KEY)
     model = sdk.models.completions('yandexgpt')
     model = model.configure(max_tokens=max_tokens)
-    prompt = "Тебе на вход дан комментарий пользователя. Твоя задача - оценить его объективность. Выведи в ответе только одно вещественное число от 0 до 1, вероятность того, что комментарий не объективен. Комментарий: " + comment
-    result = model.run(prompt)
-    return result[0].text
+    prompt = system_prompt + comment
+    proba = model.run(prompt)
+    return proba[0].text
 
 @app.post("/llm_predict", response_model=GenerateResponse)
 async def predict(request: GenerateRequest):
@@ -45,10 +65,10 @@ async def predict(request: GenerateRequest):
         except RuntimeError:
             pass
         if loop:
-            result = await loop.run_in_executor(executor, predict_sync, request.comment, request.max_tokens)
+            proba = await loop.run_in_executor(executor, predict_sync, request.comment, request.max_tokens)
         else:
-            result = predict_sync(request.comment, request.max_tokens)
-        return GenerateResponse(result=result)
+            proba = predict_sync(request.comment, request.max_tokens)
+        return GenerateResponse(result=proba)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
