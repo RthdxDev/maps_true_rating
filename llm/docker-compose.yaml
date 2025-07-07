@@ -1,0 +1,9 @@
+services:
+  llm:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - YANDEX_API_KEY=$YANDEX_API_KEY
+      - FOLDER_ID=$FOLDER_ID
+      - WORKERS=4
