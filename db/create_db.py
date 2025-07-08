@@ -3,12 +3,15 @@ import os
 import sys
 import psycopg
 from psycopg import AsyncConnection
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 async def create_tables():
     conn: AsyncConnection = await psycopg.AsyncConnection.connect(
         host=os.getenv("DB_HOST"),
-        port=os.getenv("DB_PORT"),
+        port=int(os.getenv("DB_PORT", 5432)),
         dbname=os.getenv("DB_NAME"),
         user=os.getenv("DB_USER"),
         password=os.getenv("DB_PASSWORD")
@@ -27,13 +30,13 @@ async def create_tables():
                 address VARCHAR(256),
                 description TEXT,
                 rating FLOAT NOT NULL,
-                id_chain BIGINT NULL,
+                chain_id BIGINT NULL,
                 bot_amount INT,
                 spam_amount INT,
                 inept_amount INT,
                 LLM_amount INT,
                 reviews_amount INT,
-                CONSTRAINT fk_chain FOREIGN KEY (id_chain) REFERENCES chains (id)
+                CONSTRAINT fk_chain FOREIGN KEY (chain_id) REFERENCES chains (id)
             );
             CREATE TABLE IF NOT EXISTS users (
                 id VARCHAR(128) PRIMARY KEY,
@@ -56,8 +59,8 @@ async def create_tables():
                 LLM_prob FLOAT,
                 score FLOAT,
                 corrected_score FLOAT,
-                CONSTRAINT fk_place FOREIGN KEY (id_place) REFERENCES places (id),
-                CONSTRAINT fk_user FOREIGN KEY (id_user) REFERENCES users (id)
+                CONSTRAINT fk_place FOREIGN KEY (place_id) REFERENCES places (id),
+                CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users (id)
             );
         ''')
         await conn.commit()

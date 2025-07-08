@@ -3,15 +3,17 @@ from fuzzywuzzy import process
 import typing as tp
 from pathlib import Path
 import json
+import pprint
 import psycopg
 # pip install "psycopg[binary,async]"
 from psycopg.rows import dict_row
+from dotenv import load_dotenv
 
+load_dotenv()
 # TODO: Сделать функцию для отправки данных на фронт
 # TODO: Подключить LLM api и api карт
 
-# TODO: Удалить это нахуй, так как это для тестов
-import pprint
+# TODO: Удалить это нахуй, так как это для тестов (также удалить pprint)
 
 pp = pprint.PrettyPrinter(indent=2)
 
@@ -21,7 +23,7 @@ pp = pprint.PrettyPrinter(indent=2)
 async def get_connection() -> psycopg.AsyncConnection:
     return await psycopg.AsyncConnection.connect(
         host=os.getenv("DB_HOST"),
-        port=os.getenv("DB_PORT"),
+        port=int(os.getenv("DB_PORT", 5432)),
         dbname=os.getenv("DB_NAME"),
         user=os.getenv("DB_USER"),
         password=os.getenv("DB_PASSWORD")
@@ -33,14 +35,14 @@ async def get_some_reviews(place_id: str, review_limit: int) -> list[dict[str, t
     try:
         async with conn.cursor(row_factory=dict_row) as cur:
             await cur.execute('''
-                SELECT * FROM reviews WHERE id_place = %s LIMIT %s;
+                SELECT * FROM reviews WHERE place_id = %s LIMIT %s;
             ''', (place_id, review_limit))
             raw_reviews = await cur.fetchall()
             cooked_reviews = []
             for review in raw_reviews:
                 await cur.execute('''
                     SELECT name FROM users WHERE id = %s;
-                ''', (review['id_user'],))
+                ''', (review['user_id'],))
                 review['author_name'] = (await cur.fetchone())['name']
                 review['author_initials'] = await get_initials(review['author_name'])
                 review['rating'] = review['score']
@@ -49,8 +51,8 @@ async def get_some_reviews(place_id: str, review_limit: int) -> list[dict[str, t
                 review['generation_prob'] = review['llm_prob']
                 # TODO:
                 review['relevance'] = await smth()
-                del review['id_place']
-                del review['id_user']
+                del review['place_id']
+                del review['user_id']
                 del review['inept_prob']
                 del review['bot_prob']
                 del review['llm_prob']
@@ -80,9 +82,9 @@ async def get_exact_place(place_id: str, review_limit: int = 0) -> dict[str, tp.
             place_data = await cur.fetchone()
             await cur.execute('''
                 SELECT chain_size FROM chains WHERE id = %s;
-            ''', (place_data['id_chain'],))
+            ''', (place_data['chain_id'],))
             place_data['chain_size'] = (await cur.fetchone())['chain_size']
-            del place_data['id_chain']
+            del place_data['chain_id']
             place_data['total_reviews'] = place_data['reviews_amount']
 
             place_data['controversial_reviews'] = {
@@ -242,7 +244,7 @@ async def add_place(place_data: dict[str, tp.Any]) -> int:
             chain_id = (await get_chain(place_data['name'].lower(), place_data['rating']))['id']
             try:
                 await cur.execute('''
-                    INSERT INTO places (id, name, address, description, rating, id_chain, bot_amount, spam_amount, inept_amount, LLM_amount, reviews_amount) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+                    INSERT INTO places (id, name, address, description, rating, chain_id, bot_amount, spam_amount, inept_amount, LLM_amount, reviews_amount) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
                 ''', (place_data['place_id'], place_data['name'], place_data['address'], place_data['description'],
                       place_data['rating'], chain_id, 0, 0, 0, 0, 0))
             except Exception as e:
@@ -319,7 +321,7 @@ async def get_chain(chain_name: str, chain_rating: int = 0) -> dict[str, tp.Any]
                                      'rating': 0}
             else:
                 await cur.execute('''
-                    SELECT COUNT(*) FROM places WHERE id_chain = %s;
+                    SELECT COUNT(*) FROM places WHERE chain_id = %s;
                 ''', (chain_information['id'],))
                 chain_information['chain_size'] = (await cur.fetchone())['count']
 
@@ -328,7 +330,7 @@ async def get_chain(chain_name: str, chain_rating: int = 0) -> dict[str, tp.Any]
                 ''', (chain_information['chain_size'], chain_information['id']))
 
                 await cur.execute('''
-                    SELECT AVG(rating) FROM places WHERE id_chain = %s;
+                    SELECT AVG(rating) FROM places WHERE chain_id = %s;
                 ''', (chain_information['id'],))
                 chain_information['rating'] = (await cur.fetchone())['avg']
 
@@ -358,7 +360,7 @@ async def get_place(place_data: dict[str, tp.Any]) -> dict[str, tp.Any]:
                                      'address': place_data['address'],
                                      'description': place_data['description'],
                                      'rating': place_data['rating'],
-                                     'id_chain': (await get_chain(place_data['place_name'], place_data['rating'])),
+                                     'chain_id': (await get_chain(place_data['place_name'], place_data['rating'])),
                                      'bot_amount': 0,
                                      'spam_amount': 0,
                                      'inept_amount': 0,
@@ -490,4 +492,4 @@ if __name__ == "__main__":
 
     if sys.platform.startswith("win"):
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-    asyncio.run(get_some_places('Пятёрочка', 5))
+    asyncio.run(print_tables())
