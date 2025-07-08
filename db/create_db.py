@@ -9,6 +9,10 @@ load_dotenv()
 
 
 async def create_tables():
+    """
+    Функция для создания баз данных.
+    :return: Ничего.
+    """
     conn: AsyncConnection = await psycopg.AsyncConnection.connect(
         host=os.getenv("DB_HOST"),
         port=int(os.getenv("DB_PORT", 5432)),
@@ -34,7 +38,7 @@ async def create_tables():
                 bot_amount INT,
                 spam_amount INT,
                 inept_amount INT,
-                LLM_amount INT,
+                llm_amount INT,
                 reviews_amount INT,
                 CONSTRAINT fk_chain FOREIGN KEY (chain_id) REFERENCES chains (id)
             );
@@ -52,11 +56,11 @@ async def create_tables():
                 place_id VARCHAR(32) NOT NULL,
                 user_id VARCHAR(32) NULL,
                 feedback TEXT,
-                date DATE,
+                date TIMESTAMP,
                 bot_prob FLOAT,
                 spam_prob FLOAT,
                 inept_prob FLOAT,
-                LLM_prob FLOAT,
+                llm_prob FLOAT,
                 score FLOAT,
                 corrected_score FLOAT,
                 CONSTRAINT fk_place FOREIGN KEY (place_id) REFERENCES places (id),

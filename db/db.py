@@ -10,8 +10,7 @@ from psycopg.rows import dict_row
 from dotenv import load_dotenv
 
 load_dotenv()
-# TODO: Сделать функцию для отправки данных на фронт
-# TODO: Подключить LLM api и api карт
+# TODO: Подключить llm api и api карт
 
 # TODO: Удалить это нахуй, так как это для тестов (также удалить pprint)
 
@@ -21,6 +20,10 @@ pp = pprint.PrettyPrinter(indent=2)
 # TODO: до сюда удалять
 
 async def get_connection() -> psycopg.AsyncConnection:
+    """
+    Функция для получения соединения с базой данных Postgresql.
+    :return: Соединение с базой данных.
+    """
     return await psycopg.AsyncConnection.connect(
         host=os.getenv("DB_HOST"),
         port=int(os.getenv("DB_PORT", 5432)),
@@ -30,7 +33,32 @@ async def get_connection() -> psycopg.AsyncConnection:
     )
 
 
+async def get_used_reviews() -> list[str]:
+    """
+    Функция для получения информации об id использованных отзывов, которые добавлены в таблицу.
+    :return: Список id использованных отзывов.
+    """
+    conn = await get_connection()
+    try:
+        async with conn.cursor() as cur:
+            await cur.execute('''
+                SELECT id FROM reviews;
+            ''')
+            raw_reviews = await cur.fetchall()
+            return [review[0] for review in raw_reviews]
+    finally:
+        await conn.close()
+
+
+# TODO: Выбирать наиболее релевантные отзывы
 async def get_some_reviews(place_id: str, review_limit: int) -> list[dict[str, tp.Any]]:
+    """
+    Функция для получения нескольких отзывов по информации об id заведения.
+    :param place_id: Информация об id заведения.
+    :param review_limit: Количество отзывов для вывода.
+    :return: Информация об отзывах в формате списка словарей с полями: 'author_initials', 'author_name', 'date',
+    'feedback', 'generation_prob', 'id', 'rating', 'relevance', 'text'.
+    """
     conn = await get_connection()
     try:
         async with conn.cursor(row_factory=dict_row) as cur:
@@ -58,13 +86,19 @@ async def get_some_reviews(place_id: str, review_limit: int) -> list[dict[str, t
                 del review['llm_prob']
                 del review['spam_prob']
                 del review['corrected_score']
+                review['date'] = review['date'].isoformat().replace('+00:00', 'Z')
                 cooked_reviews.append(review)
-            return cooked_reviews
+                return cooked_reviews
     finally:
         await conn.close()
 
 
 async def get_initials(name: str) -> str:
+    """
+    Функция для получения инициалов пользователя по его имени.
+    :param name: Имя пользователя.
+    :return: Инициалы пользователя, если их возможно извлечь и 'X' иначе.
+    """
     words = [word for word in name.strip().split() if not word.isdigit()]
     if not words:
         return "X"
@@ -72,7 +106,15 @@ async def get_initials(name: str) -> str:
     return initials if initials else "X"
 
 
-async def get_exact_place(place_id: str, review_limit: int = 0) -> dict[str, tp.Any]:
+async def get_exact_place(place_id: str, review_limit: int = 0) -> str:
+    """
+    Функция для получения информации о конкретном заведении по его id.
+    :param place_id: Информация об id заведения.
+    :param review_limit: Количество возвращаемых отзывов (по умолчанию 0).
+    :return: Информация об отзывах в формате списка словарей с полями: 'address', 'bot_percentage', 'chain_size',
+    'controversial_reviews', 'description', 'honest_percentage', 'honest_rating', 'honesty_rating', 'id', 'name',
+    'reviews', 'total_reviews', 'yandex_rating'.
+    """
     conn = await get_connection()
     try:
         async with conn.cursor(row_factory=dict_row) as cur:
@@ -109,12 +151,19 @@ async def get_exact_place(place_id: str, review_limit: int = 0) -> dict[str, tp.
             place_data['honest_rating'] = await smth()
             place_data['honesty_rating'] = await smth()
             place_data['reviews'] = await get_some_reviews(place_id, review_limit)
-            return place_data
+            return json.dumps(place_data)
     finally:
         await conn.close()
 
 
 async def get_some_places(text_name: str, limit: int):
+    """
+    Функция для получения информации о нескольких заведениях по неточному названию.
+    :param text_name: Текст от пользователя.
+    :param limit: Количество заведений, которые нужно вывести.
+    :return: Возврат списка с информацией о заведениях в формате словаря с полями: 'address', 'chain_size',
+    'honestly_rating', 'id', 'name', 'yandex_rating'.
+    """
     conn = await get_connection()
     try:
         async with conn.cursor() as cur:
@@ -128,8 +177,16 @@ async def get_some_places(text_name: str, limit: int):
             answer = []
             for match in best_matches:
                 place_data = await get_exact_place(match)
+                place_data = json.loads(place_data)
+                del place_data['controversial_reviews']
+                del place_data['description']
+                del place_data['bot_percentage']
+                del place_data['honest_percentage']
+                del place_data['honest_rating']
+                del place_data['reviews']
+                del place_data['total_reviews']
                 answer.append(place_data)
-            pp.pprint(answer)
+            return json.dumps(answer)
     finally:
         await conn.close()
 
@@ -139,24 +196,44 @@ async def smth(*args) -> tp.Any:
 
 
 async def get_features(review_text: str) -> dict[str, float]:
+    """
+    Функция для получения ответов от моделей.
+    :param review_text: Текст отзыва.
+    :return: Словарь вероятностей с числами [0, 1] с полями: 'bot_prob', 'spam_prob', 'inept_prob', 'llm_prob'.
+    """
     # TODO: Установите нормальное подключение к api
     features: list[float] = await smth(review_text)
     features = [0, 0, 0]
-    LLM_feature: float = await smth(review_text)
-    LLM_feature = 0
+    llm_feature: float = await smth(review_text)
+    llm_feature = 0
     return {'bot_prob': features[0],
             'spam_prob': features[1],
             'inept_prob': features[2],
-            'LLM_prob': LLM_feature}
+            'llm_prob': llm_feature}
 
 
 async def calculate_corrected_score(bot_prob: float, spam_prob: float, inept_prob: float, llm_prob: float,
                                     score: float) -> float:
+    """
+    Функция для подсчёта 'честного' score по ответам моделей об отзыве.
+    :param bot_prob: Вероятность того, что отзыв написан ботом.
+    :param spam_prob: Вероятность того, что отзыв написан спамером.
+    :param inept_prob: Вероятность того, что отзыв некомпетентен.
+    :param llm_prob: Вероятность того, что отзыв написан нейросетью.
+    :param score: Оценка поставленная пользователем.
+    :return: Оценка, рассчитанная по формуле и являющаяся 'честной'
+    """
     # TODO: Напишите формулу для исправленного балла или сделайте что-нибудь еще
     return score * (1 - (bot_prob + spam_prob + inept_prob + llm_prob) / 4.0)
 
 
 async def add_review(review_data: dict[str, tp.Any]) -> None:
+    """
+    Функция для добавления отзыва по его полной информации.
+    :param review_data: Информация об отзыве в виде словаря с полями: 'place_id', 'review_id', 'user_data', 'feedback',
+    'score', 'date'.
+    :return: Ничего.
+    """
     conn = await get_connection()
     try:
         async with conn.cursor() as cur:
@@ -175,13 +252,13 @@ async def add_review(review_data: dict[str, tp.Any]) -> None:
             user_id = (await get_user(review_data['user_data']))['id']
             models_output = await get_features(review_data['feedback'])
             corrected_score = await calculate_corrected_score(models_output['bot_prob'], models_output['spam_prob'],
-                                                              models_output['inept_prob'], models_output['LLM_prob'],
+                                                              models_output['inept_prob'], models_output['llm_prob'],
                                                               review_data['score'])
             try:
                 await cur.execute('''
                     INSERT INTO reviews (
                         id, place_id, user_id, feedback, date, bot_prob, spam_prob, inept_prob,
-                        LLM_prob, score, corrected_score
+                        llm_prob, score, corrected_score
                     ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
                 ''', (
                     review_data['review_id'],
@@ -192,7 +269,7 @@ async def add_review(review_data: dict[str, tp.Any]) -> None:
                     models_output['bot_prob'],
                     models_output['spam_prob'],
                     models_output['inept_prob'],
-                    models_output['LLM_prob'],
+                    models_output['llm_prob'],
                     review_data['score'],
                     corrected_score
                 ))
@@ -203,16 +280,20 @@ async def add_review(review_data: dict[str, tp.Any]) -> None:
         await conn.close()
 
 
-# async def get_reviews(place_id: int) -> list[]
-
-async def add_user(user_data: dict[str, tp.Any]) -> int:
+async def add_user(user_data: dict[str, tp.Any]) -> str:
+    """
+    Функция для добавления пользователя по его полной информации.
+    :param user_data: Информации о пользователе в виде словаря с полями: 'reviewer_id', 'name', 'total_reviews'.
+    :return: Информация об id пользователя.
+    """
     # TODO: Добавить подсчёт вероятности бота для юзера
     conn = await get_connection()
     try:
         async with conn.cursor() as cur:
             try:
                 await cur.execute('''
-                    INSERT INTO users (id, name, bad_reviews, good_reviews, total_reviews, probability_bad) VALUES (%s, %s, %s, %s, %s, %s);
+                    INSERT INTO users (id, name, bad_reviews, good_reviews, total_reviews, probability_bad) 
+                    VALUES (%s, %s, %s, %s, %s, %s);
                 ''', (user_data['reviewer_id'], user_data['name'], 0, 0, user_data['total_reviews'], 0))
             except Exception as e:
                 # Повторяющийся юзер
@@ -224,6 +305,12 @@ async def add_user(user_data: dict[str, tp.Any]) -> int:
 
 
 async def add_chain(chain_name: str, chain_rating: float) -> int:
+    """
+    Функция для добавления сети в таблицу по её полной информации.
+    :param chain_name: Название сети, где все буквы маленькие.
+    :param chain_rating: Рейтинг заведения.
+    :return: Информация об id сети.
+    """
     conn = await get_connection()
     try:
         async with conn.cursor() as cur:
@@ -237,14 +324,21 @@ async def add_chain(chain_name: str, chain_rating: float) -> int:
         await conn.close()
 
 
-async def add_place(place_data: dict[str, tp.Any]) -> int:
+async def add_place(place_data: dict[str, tp.Any]) -> str:
+    """
+    Функция для добавления заведения в таблицу по его полной информации.
+    :param place_data: Информация о заведении в формате словаря с полями: 'place_id', 'name', 'address', 'description',
+    'rating'.
+    :return: Информация об id пользователя.
+    """
     conn = await get_connection()
     try:
         async with conn.cursor() as cur:
             chain_id = (await get_chain(place_data['name'].lower(), place_data['rating']))['id']
             try:
                 await cur.execute('''
-                    INSERT INTO places (id, name, address, description, rating, chain_id, bot_amount, spam_amount, inept_amount, LLM_amount, reviews_amount) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+                    INSERT INTO places (id, name, address, description, rating, chain_id, bot_amount, spam_amount\
+                    , inept_amount, llm_amount, reviews_amount) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
                 ''', (place_data['place_id'], place_data['name'], place_data['address'], place_data['description'],
                       place_data['rating'], chain_id, 0, 0, 0, 0, 0))
             except Exception as e:
@@ -258,6 +352,14 @@ async def add_place(place_data: dict[str, tp.Any]) -> int:
 
 # TODO: Добавить подсчет bad_reviews, good_reviews и probability_bad
 async def get_user(user_data: dict[str, tp.Any]) -> dict[str, tp.Any]:
+    """
+    Функция для получения информации о пользователе по всей его информацией (или только 'reviewer_id'), возвращает
+    полную информацию о пользователе.
+    :param user_data: Информация о пользователе в виде словаря с полями: 'reviewer_id' (Необходимо), 'name',
+    'total_reviews'.
+    :return: Информация о пользователе в видео словаря с полями: 'id', 'name', 'bad_reviews', 'good_reviews',
+    'total_reviews', 'probability_bad'.
+    """
     conn = await get_connection()
     try:
         async with conn.cursor(row_factory=dict_row) as cur:
@@ -276,7 +378,7 @@ async def get_user(user_data: dict[str, tp.Any]) -> dict[str, tp.Any]:
             else:
                 await cur.execute('''
                     SELECT COUNT(*) FROM reviews WHERE user_id = %s AND 
-                    (bot_prob > 0.7 OR spam_prob > 0.7 OR inept_prob > 0.7 OR LLM_prob > 0.7)
+                    (bot_prob > 0.7 OR spam_prob > 0.7 OR inept_prob > 0.7 OR llm_prob > 0.7)
                 ''', (user_data['reviewer_id'],))
                 user_information['bad_reviews'] = (await cur.fetchone())['count']
 
@@ -286,7 +388,7 @@ async def get_user(user_data: dict[str, tp.Any]) -> dict[str, tp.Any]:
                 user_information['good_reviews'] = (await cur.fetchone())['count'] - user_information['bad_reviews']
 
                 await cur.execute('''
-                    SELECT AVG((bot_prob + spam_prob + inept_prob + LLM_prob) / 4.0) FROM reviews WHERE id = %s;
+                    SELECT AVG((bot_prob + spam_prob + inept_prob + llm_prob) / 4.0) FROM reviews WHERE id = %s;
                 ''', (user_data['reviewer_id'],))
                 # TODO: Формулка типо для всех prob берём среднее значение и дальше думаем, можно с весами сделать,
                 # TODO: а можно че нибудь более умное
@@ -305,7 +407,12 @@ async def get_user(user_data: dict[str, tp.Any]) -> dict[str, tp.Any]:
         await conn.close()
 
 
-async def get_chain(chain_name: str, chain_rating: int = 0) -> dict[str, tp.Any]:
+async def get_chain(chain_name: str, chain_rating: float) -> dict[str, tp.Any]:
+    """
+    Функция для получения информации о сети, получает на вход название сети (маленькими буквами) и рейтинг заведения.
+    :param chain_name: Название сети, где все буквы маленькие.
+    :return: Словарь с полями: 'id', 'name', 'chain_size', 'rating'.
+    """
     conn = await get_connection()
     try:
         async with conn.cursor(row_factory=dict_row) as cur:
@@ -314,30 +421,29 @@ async def get_chain(chain_name: str, chain_rating: int = 0) -> dict[str, tp.Any]
             ''', (chain_name,))
             chain_information = await cur.fetchone()
             if chain_information is None:
-                chain_id = await add_chain(chain_name, chain_rating)
-                chain_information = {'id': chain_id,
+                chain_information = {'id': await add_chain(chain_name, chain_rating),
                                      'name': chain_name,
                                      'chain_size': 1,
-                                     'rating': 0}
-            else:
-                await cur.execute('''
-                    SELECT COUNT(*) FROM places WHERE chain_id = %s;
-                ''', (chain_information['id'],))
-                chain_information['chain_size'] = (await cur.fetchone())['count']
+                                     'rating': chain_rating,
+                                     }
+            await cur.execute('''
+                SELECT COUNT(*) FROM places WHERE chain_id = %s;
+            ''', (chain_information['id'],))
+            chain_information['chain_size'] = (await cur.fetchone())['count']
 
-                await cur.execute('''
-                    UPDATE chains SET chain_size = %s WHERE id = %s;
-                ''', (chain_information['chain_size'], chain_information['id']))
+            await cur.execute('''
+                UPDATE chains SET chain_size = %s WHERE id = %s;
+            ''', (chain_information['chain_size'], chain_information['id']))
 
-                await cur.execute('''
-                    SELECT AVG(rating) FROM places WHERE chain_id = %s;
-                ''', (chain_information['id'],))
-                chain_information['rating'] = (await cur.fetchone())['avg']
+            await cur.execute('''
+                SELECT AVG(rating) FROM places WHERE chain_id = %s;
+            ''', (chain_information['id'],))
+            chain_information['rating'] = (await cur.fetchone())['avg']
 
-                await cur.execute('''
-                    UPDATE chains SET rating = %s WHERE id = %s;
-                ''', (chain_information['rating'], chain_information['id']))
-                await conn.commit()
+            await cur.execute('''
+                UPDATE chains SET rating = %s WHERE id = %s;
+            ''', (chain_information['rating'], chain_information['id']))
+            await conn.commit()
             return chain_information
     finally:
         await conn.close()
@@ -346,6 +452,14 @@ async def get_chain(chain_name: str, chain_rating: int = 0) -> dict[str, tp.Any]
 # TODO: сделать АДЕКВАТНЫЙ подсчёт amount-ов (пока что все что prob > 0.7 это подходит под критерий
 
 async def get_place(place_data: dict[str, tp.Any]) -> dict[str, tp.Any]:
+    """
+    Функция для получения всей информации о заведении по его полной информации (или только place_id), возвращает словарь
+    с полной информацией об этом заведении.
+    :param place_data: Информация о заведении в формате словаря с полями: 'place_id' (Необходимо), 'name', 'address',
+    'description', 'rating'.
+    :return: Словарь с полями: 'id', 'name', 'address', 'description', 'rating', 'chain_id', 'bot_amount', 
+    'spam_amount', 'inept_amount', 'llm_amount', 'reviews_amount'.
+    """
     conn = await get_connection()
     try:
         async with conn.cursor(row_factory=dict_row) as cur:
@@ -353,73 +467,63 @@ async def get_place(place_data: dict[str, tp.Any]) -> dict[str, tp.Any]:
                 SELECT * FROM places WHERE places.id = %s;
             ''', (place_data['place_id'],))
             place_information = await cur.fetchone()
-            if place_information is None:
-                place_id = await add_place(place_data)
-                place_information = {'id': place_id,
-                                     'name': place_data['name'],
-                                     'address': place_data['address'],
-                                     'description': place_data['description'],
-                                     'rating': place_data['rating'],
-                                     'chain_id': (await get_chain(place_data['place_name'], place_data['rating'])),
-                                     'bot_amount': 0,
-                                     'spam_amount': 0,
-                                     'inept_amount': 0,
-                                     'LLM_amount': 0,
-                                     'reviews_amount': 0,
-                                     }
-            else:
-                # TODO: Придумать как пересчитывать amount's
-                # Общее количество
-                await cur.execute('''
-                    SELECT COUNT(*) FROM reviews WHERE place_id = %s;
-                ''', (place_data['place_id'],))
-                place_data['reviews_amount'] = (await cur.fetchone())['count']
+            # TODO: Придумать как пересчитывать amount's
+            # Общее количество
+            await cur.execute('''
+                SELECT COUNT(*) FROM reviews WHERE place_id = %s;
+            ''', (place_data['place_id'],))
+            place_data['reviews_amount'] = (await cur.fetchone())['count']
 
-                await cur.execute('''
-                    UPDATE places SET reviews_amount = %s WHERE id = %s;
-                ''', (place_data['reviews_amount'], place_data['place_id']))
-                # Количество комментариев от ботов
-                await cur.execute('''
-                    SELECT COUNT(*) FROM reviews WHERE place_id = %s AND bot_prob > 0.7
-                ''', place_data['place_id'])
-                place_data['bot_amount'] = (await cur.fetchone())['count']
+            await cur.execute('''
+                UPDATE places SET reviews_amount = %s WHERE id = %s;
+            ''', (place_data['reviews_amount'], place_data['place_id']))
+            # Количество комментариев от ботов
+            await cur.execute('''
+                SELECT COUNT(*) FROM reviews WHERE place_id = %s AND bot_prob > 0.7
+            ''', place_data['place_id'])
+            place_data['bot_amount'] = (await cur.fetchone())['count']
 
-                await cur.execute('''
-                    UPDATE places SET reviews_amount = %s WHERE id = %s;
-                ''', (place_data['bot_amount'], place_data['place_id']))
-                # Количество комментариев от спамеров
-                await cur.execute('''
-                    SELECT COUNT(*) FROM reviews WHERE place_id = %s AND spam_prob > 0.7
-                ''', place_data['place_id'])
-                place_data['spam_amount'] = (await cur.fetchone())['count']
+            await cur.execute('''
+                UPDATE places SET reviews_amount = %s WHERE id = %s;
+            ''', (place_data['bot_amount'], place_data['place_id']))
+            # Количество комментариев от спамеров
+            await cur.execute('''
+                SELECT COUNT(*) FROM reviews WHERE place_id = %s AND spam_prob > 0.7
+            ''', place_data['place_id'])
+            place_data['spam_amount'] = (await cur.fetchone())['count']
 
-                await cur.execute('''
-                    UPDATE places SET spam_amount = %s WHERE id = %s;
-                ''', (place_data['spam_amount'], place_data['place_id']))
-                # Количество комментариев от необразованных
-                await cur.execute('''
-                    SELECT COUNT(*) FROM reviews WHERE place_id = %s AND inept_prob > 0.7
-                ''', place_data['place_id'])
-                place_data['inept_amount'] = (await cur.fetchone())['count']
+            await cur.execute('''
+                UPDATE places SET spam_amount = %s WHERE id = %s;
+            ''', (place_data['spam_amount'], place_data['place_id']))
+            # Количество комментариев от необразованных
+            await cur.execute('''
+                SELECT COUNT(*) FROM reviews WHERE place_id = %s AND inept_prob > 0.7
+            ''', place_data['place_id'])
+            place_data['inept_amount'] = (await cur.fetchone())['count']
 
-                await cur.execute('''
-                    UPDATE places SET inept_amount = %s WHERE id = %s;
-                ''', (place_data['inept_amount'], place_data['place_id']))
-                # Количество комментариев от LLM
-                await cur.execute('''
-                    SELECT COUNT(*) FROM reviews WHERE place_id = %s AND LLM_prob > 0.7
-                ''', place_data['place_id'])
-                place_data['LLM_amount'] = (await cur.fetchone())['count']
+            await cur.execute('''
+                UPDATE places SET inept_amount = %s WHERE id = %s;
+            ''', (place_data['inept_amount'], place_data['place_id']))
+            # Количество комментариев от llm
+            await cur.execute('''
+                SELECT COUNT(*) FROM reviews WHERE place_id = %s AND llm_prob > 0.7
+            ''', place_data['place_id'])
+            place_data['llm_amount'] = (await cur.fetchone())['count']
 
-                await cur.execute('''
-                    UPDATE places SET LLM_amount = %s WHERE id = %s;
-                ''', (place_data['LLM_amount'], place_data['place_id']))
+            await cur.execute('''
+                UPDATE places SET llm_amount = %s WHERE id = %s;
+            ''', (place_data['llm_amount'], place_data['place_id']))
             return place_information
     finally:
         await conn.close()
 
 
 async def upload_places(path_to_file: Path = None):
+    """
+    Загружает места из указанного файла (по умолчанию это ../datapack/places.json).
+    :param path_to_file: Путь к файлу из которого нужно загрузить заведения.
+    :return: Ничего.
+    """
     if path_to_file is None:
         current_dir = os.path.dirname(__file__)
         json_path = os.path.join(current_dir, '..', 'datapack', 'places.json')
@@ -431,6 +535,11 @@ async def upload_places(path_to_file: Path = None):
 
 
 async def upload_reviews(path_to_file: Path = None):
+    """
+    Загружает отзывы из указанного файла (по умолчанию это ../datapack/reviews.json).
+    :param path_to_file: Путь к файлу, из которого нужно загрузить отзывы.
+    :return: Ничего.
+    """
     if path_to_file is None:
         current_dir = os.path.dirname(__file__)
         json_path = os.path.join(current_dir, '..', 'datapack', 'reviews.json')
@@ -452,6 +561,33 @@ async def upload_reviews(path_to_file: Path = None):
             'feedback': raw_review_data['feedback']
         }
         await add_review(review_data)
+
+
+# TODO: Удалить все что снизу
+async def drop_tables():
+    """
+    Функция для удаления всех таблиц и сброса.
+    :return: Ничего.
+    """
+    async with await psycopg.AsyncConnection.connect(
+            host=os.getenv("DB_HOST"),
+            port=int(os.getenv("DB_PORT", 5432)),
+            dbname=os.getenv("DB_NAME"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD")
+    ) as conn:
+        async with conn.cursor() as cur:
+            await cur.execute("""
+                SELECT tablename
+                FROM pg_catalog.pg_tables
+                WHERE schemaname NOT IN ('pg_catalog', 'information_schema');
+            """)
+            raw_tables = await cur.fetchall()
+            TABLES = [raw_table[0] for raw_table in raw_tables]
+            for table in TABLES:
+                await cur.execute(f"DROP TABLE IF EXISTS {table} CASCADE;")
+                print(f"✅ Dropped table: {table}")
+            await conn.commit()
 
 
 async def print_tables():
@@ -492,4 +628,6 @@ if __name__ == "__main__":
 
     if sys.platform.startswith("win"):
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-    asyncio.run(print_tables())
+    asyncio.run(get_some_places('Дикса', 2))
+    x = asyncio.run(get_exact_place('ChIJOSEHWqUxlkYRH540_fXbUKU', 1))
+    pp.pprint(x)
