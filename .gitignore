@@ -1,0 +1,5 @@
+.env
+api.log
+database.log
+old_search.py
+index.html
