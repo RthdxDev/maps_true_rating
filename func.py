@@ -82,8 +82,7 @@ async def get_place_by_id(place_id: str, review_limit: int = 60) -> dict | None:
             del place_data['chain_id']
 
             # Calculate metrics
-            # total_reviews = place_data['reviews_amout'] TODO ADD IN DB
-            total_reviews = 0
+            total_reviews = place_data['reviews_amount']
             controversial_total = (
                     place_data['llm_amount'] +
                     place_data['bot_amount'] +
@@ -109,9 +108,7 @@ async def get_place_by_id(place_id: str, review_limit: int = 60) -> dict | None:
 
             # Cleanup fields
             for field in ['llm_amount', 'bot_amount', 'spam_amount',
-                          'inept_amount', 'reviews_amout']:
-                if field == "reviews_amout":
-                    continue               # TODO MAKE IT CORRECT
+                          'inept_amount', 'reviews_amount']:
                 del place_data[field]
 
             # Prepare ratings
