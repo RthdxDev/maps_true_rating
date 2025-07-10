@@ -95,23 +95,6 @@ async def get_place(place_id: str):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@app.get("/test-logging")
-async def test_logging():
-    """Endpoint to test logging functionality"""
-    logger.debug("This is a DEBUG message - should only appear in log file")
-    logger.info("This is an INFO message - should appear everywhere")
-    logger.warning("This is a WARNING message - should appear everywhere")
-    logger.error("This is an ERROR message - should appear everywhere")
-
-    func_logger.debug("Func DEBUG test")
-    func_logger.info("Func INFO test")
-
-    return {
-        "status": "Logging test complete",
-        "message": "Check console and api.log for output"
-    }
-
-
 if __name__ == "__main__":
     import uvicorn
 
