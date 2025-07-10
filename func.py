@@ -25,6 +25,7 @@ async def get_connection() -> psycopg.AsyncConnection:
 async def get_some_reviews(place_id: str, review_limit: int) -> list[dict[str, tp.Any]] | None:
     """Fetch reviews for a place with ID"""
     conn = await get_connection()
+    logger.debug(f"reviews for {place_id}")
     try:
         async with conn.cursor(row_factory=dict_row) as cur:
             await cur.execute('SELECT * FROM reviews WHERE place_id = %s LIMIT %s;', (str(place_id), review_limit))
@@ -37,7 +38,7 @@ async def get_some_reviews(place_id: str, review_limit: int) -> list[dict[str, t
                 review['author_initials'] = await get_initials(review['author_name'])
                 review['rating'] = review['score']
                 review['text'] = review['feedback']
-                review['generation_prob'] = review['llm_prob']
+                review['generation_prob'] = review['llm_prob'] * 100
                 review['relevance'] = None  # TODO: Calculate relevance
 
                 # Cleanup unnecessary fields
@@ -68,6 +69,7 @@ async def get_initials(name: str) -> str:
 async def get_place_by_id(place_id: str, review_limit: int = 60) -> dict | None:
     """Get detailed place information by ID"""
     conn = await get_connection()
+    logger.debug(f"Start place by id for {place_id}")
     try:
         async with conn.cursor(row_factory=dict_row) as cur:
             await cur.execute('SELECT * FROM places WHERE id = %s;', (place_id,))
@@ -118,6 +120,7 @@ async def get_place_by_id(place_id: str, review_limit: int = 60) -> dict | None:
 
             # Get reviews
             place_data['reviews'] = await get_some_reviews(place_id, review_limit)
+            logger.debug(f"Place by id: {place_data}")
             return place_data
     except Exception as e:
         logger.error(f"Failed to get place by id: {str(e)}", exc_info=True)
