@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Честные отзывы - Рейтинг заведений СПб</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4edf5 100%);
+            color: #333;
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            padding: 30px 0;
+            margin-bottom: 30px;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .logo i {
+            font-size: 2.5rem;
+            color: #1e3a8a;
+        }
+        
+        h1 {
+            font-size: 2.8rem;
+            color: #1e3a8a;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            color: #4b5563;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .search-container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            padding: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        .tab {
+            padding: 12px 25px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: #6b7280;
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+        }
+        
+        .tab.active {
+            color: #1e3a8a;
+            border-bottom: 3px solid #1e3a8a;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .search-form {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        
+        input, button {
+            padding: 15px;
+            border-radius: 12px;
+            border: none;
+            font-size: 1rem;
+        }
+        
+        input {
+            flex: 1;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            transition: border 0.3s ease;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #1e3a8a;
+            box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+        }
+        
+        button {
+            background: #1e3a8a;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s ease;
+            padding: 15px 30px;
+        }
+        
+        button:hover {
+            background: #152c6e;
+        }
+        
+        button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+        
+        .location-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #4b5563;
+            font-size: 0.9rem;
+        }
+        
+        .location-info i {
+            color: #ef4444;
+        }
+        
+        .results-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 25px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.06);
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+        }
+        
+        .card-header {
+            background: linear-gradient(90deg, #1e3a8a 0%, #2d55b8 100%);
+            color: white;
+            padding: 25px;
+        }
+        
+        .card-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .card-title h2 {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+        
+        .chain-info {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 15px;
+            border-radius: 50px;
+            font-size: 0.9rem;
+        }
+        
+        .address {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+        }
+        
+        .rating-badges {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .rating-badge {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 8px 20px;
+            border-radius: 50px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .card-content {
+            padding: 25px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-box {
+            background: #f9fafb;
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+        
+        .stat-box:hover {
+            transform: scale(1.03);
+        }
+        
+        .stat-box h3 {
+            font-size: 1.1rem;
+            color: #4b5563;
+            margin-bottom: 15px;
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #1e3a8a;
+            margin-bottom: 5px;
+        }
+        
+        .stat-description {
+            color: #6b7280;
+            font-size: 0.95rem;
+        }
+        
+        .progress-bar {
+            height: 10px;
+            background: #e5e7eb;
+            border-radius: 5px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+        
+        .progress {
+            height: 100%;
+            border-radius: 5px;
+        }
+        
+        .bot-progress {
+            background: #ef4444;
+        }
+        
+        .honest-progress {
+            background: #10b981;
+        }
+        
+        .section-title {
+            font-size: 1.4rem;
+            color: #1e3a8a;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        .reviews-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            margin-bottom: 30px;
+        }
+        
+        .reviews-table th {
+            background: #f3f4f6;
+            padding: 15px;
+            text-align: left;
+            color: #4b5563;
+            font-weight: 600;
+        }
+        
+        .reviews-table td {
+            padding: 15px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .reviews-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .controversial-cell {
+            color: #ef4444;
+            font-weight: 600;
+        }
+        
+        .honest-cell {
+            color: #10b981;
+            font-weight: 600;
+        }
+        
+        /* Стили для детализации отзывов */
+        .detailed-reviews {
+            margin-top: 30px;
+        }
+        
+        .review-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            border-left: 4px solid #1e3a8a;
+        }
+        
+        .review-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .review-author {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .author-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #1e3a8a;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        
+        .author-info {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .author-name {
+            font-weight: 600;
+            color: #1e3a8a;
+        }
+        
+        .review-date {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+        
+        .review-rating {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-weight: bold;
+            color: #eab308;
+        }
+        
+        .review-content {
+            margin-bottom: 20px;
+            line-height: 1.6;
+            color: #4b5563;
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 3px solid #d1d5db;
+        }
+        
+        .review-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .review-stat {
+            background: #f3f4f6;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        
+        .stat-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #4b5563;
+        }
+        
+        .stat-value-bar {
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+        
+        .stat-bar {
+            height: 100%;
+            border-radius: 4px;
+        }
+        
+        .bot-stat {
+            background: #ef4444;
+        }
+        
+        .relevance-stat {
+            background: #10b981;
+        }
+        
+        .stat-percentage {
+            text-align: right;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+        
+        .bot-percentage {
+            color: #ef4444;
+        }
+        
+        .relevance-percentage {
+            color: #10b981;
+        }
+        
+        .reviews-controls {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+            gap: 15px;
+        }
+        
+        .reviews-btn {
+            background: #1e3a8a;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+            font-weight: 600;
+        }
+        
+        .reviews-btn:hover {
+            background: #152c6e;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 50px 20px;
+            color: #6b7280;
+        }
+        
+        .empty-state i {
+            font-size: 4rem;
+            color: #d1d5db;
+            margin-bottom: 20px;
+        }
+        
+        .empty-state h3 {
+            font-size: 1.8rem;
+            margin-bottom: 15px;
+            color: #4b5563;
+        }
+        
+        .empty-state p {
+            max-width: 500px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 30px 0;
+            color: #6b7280;
+            margin-top: 50px;
+            font-size: 0.9rem;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        @media (max-width: 768px) {
+            .search-form {
+                flex-direction: column;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .rating-badges {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .card-title {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+            
+            .review-header {
+                flex-direction: column;
+            }
+            
+            .review-stats {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <i class="fas fa-star"></i>
+                <h1>Честные отзывы</h1>
+            </div>
+            <p class="subtitle">Объективные рейтинги заведений Санкт-Петербурга с анализом достоверности отзывов</p>
+        </header>
+        
+        <main>
+            <div class="search-container">
+                <div class="tabs">
+                    <div class="tab active">Поиск по названию</div>
+                </div>
+                
+                <div class="tab-content active">
+                    <form class="search-form" id="name-search-form">
+                        <input type="text" id="name-input" placeholder="Введите название заведения" required>
+                        <button type="submit" id="name-search-btn">
+                            <i class="fas fa-search"></i> Найти
+                        </button>
+                    </form>
+                    <div class="location-info">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <span>Поиск работает по заведениям Санкт-Петербурга</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="results-container" id="results-container">
+                <div class="empty-state">
+                    <i class="fas fa-search"></i>
+                    <h3>Начните поиск заведений</h3>
+                    <p>Введите название заведения в Санкт-Петербурге, чтобы увидеть объективные рейтинги и анализ отзывов.</p>
+                </div>
+            </div>
+        </main>
+        
+        <footer>
+            <p>Система анализа честности отзывов &copy; 2025</p>
+        </footer>
+    </div>
+
+    <script>
+        // Конфигурация API
+        const API_CONFIG = {
+            BASE_URL: '<api>', 
+            ENDPOINTS: {
+                SEARCH_BY_NAME: '/places/search',
+                GET_PLACE_DETAILS: '/places/detail'
+            }
+        };
+        
+        // Элементы интерфейса
+        const elements = {
+            nameSearchForm: document.getElementById('name-search-form'),
+            nameInput: document.getElementById('name-input'),
+            nameSearchBtn: document.getElementById('name-search-btn'),
+            resultsContainer: document.getElementById('results-container')
+        };
+        
+        let appState = {
+            currentPlace: null,
+            currentReviews: [],
+            currentPage: 1,
+            reviewsPerPage: 3
+        };
+        
+        function init() {
+            // Обработка формы поиска по названию
+            elements.nameSearchForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const name = elements.nameInput.value.trim();
+                if (name) {
+                    searchByName(name);
+                }
+            });
+        }
+        
+        async function searchByName(name) {
+            showLoading(`Ищем информацию о "${name}"...`);
+            
+            try {
+                // Отключаем кнопку во время запроса
+                elements.nameSearchBtn.disabled = true;
+                elements.nameSearchBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Поиск...';
+                
+                // Вызываем API для поиска по названию
+                const response = await fetch(
+                    `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.SEARCH_BY_NAME}?name=${encodeURIComponent(name)}&city=Санкт-Петербург`
+                );
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Ошибка сервера');
+                }
+                
+                const data = await response.json();
+                
+                if (data.length === 0) {
+                    showEmptyState(`По запросу "${name}" ничего не найдено`);
+                    return;
+                }
+                
+                // Отображаем список найденных заведений
+                renderPlaceList(data, name);
+            } catch (error) {
+                console.error('Ошибка при поиске по названию:', error);
+                showError(`Не удалось найти заведение: ${error.message}`);
+            } finally {
+                // Включаем кнопку обратно
+                elements.nameSearchBtn.disabled = false;
+                elements.nameSearchBtn.innerHTML = '<i class="fas fa-search"></i> Найти';
+            }
+        }
+        
+        // Получение детальной информации о заведении по ID
+        async function getPlaceDetails(placeId) {
+            showLoading('Загружаем информацию о заведении...');
+            
+            try {
+                const response = await fetch(
+                    `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.GET_PLACE_DETAILS}?place_id=${encodeURIComponent(placeId)}`
+                );
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Ошибка сервера');
+                }
+                
+                const data = await response.json();
+                
+                appState.currentPlace = data;
+                appState.currentReviews = data.reviews || [];
+                appState.currentPage = 1;
+                
+                // Отображаем результаты
+                renderPlaceDetails(data);
+            } catch (error) {
+                console.error('Ошибка при получении информации о заведении:', error);
+                showError(`Не удалось загрузить информацию: ${error.message}`);
+            }
+        }
+        
+        // Отображение состояния загрузки
+        function showLoading(message) {
+            elements.resultsContainer.innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 3rem; color: #1e3a8a; margin-bottom: 20px;"></i>
+                    <p style="font-size: 1.2rem;">${message}</p>
+                </div>
+            `;
+        }
+        
+        // Отображение пустого состояния
+        function showEmptyState(message) {
+            elements.resultsContainer.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-search"></i>
+                    <h3>Ничего не найдено</h3>
+                    <p>${message}</p>
+                </div>
+            `;
+        }
+        
+        // Отображение ошибки
+        function showError(message) {
+            elements.resultsContainer.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i>
+                    <h3>Ошибка</h3>
+                    <p>${message}</p>
+                </div>
+            `;
+        }
+        
+        // Рендеринг списка найденных заведений
+        function renderPlaceList(places, query) {
+            const placesHtml = places.map(place => `
+                <div class="card" onclick="getPlaceDetails('${place.id}')" style="cursor: pointer;">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <h2>${place.name}</h2>
+                            ${place.chain_size ? `
+                                <div class="chain-info">${place.chain_size} ${getChainText(place.chain_size)} в сети</div>
+                            ` : ''}
+                        </div>
+                        <div class="address">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <span>${place.address}</span>
+                        </div>
+                        <div class="rating-badges">
+                            <div class="rating-badge">
+                                <i class="fas fa-star"></i>
+                                <span>Рейтинг Гугл карт: ${place.yandex_rating?.toFixed(1) || 'нет'}</span>
+                            </div>
+                            ${place.honesty_rating ? `
+                            <div class="rating-badge">
+                                <i class="fas fa-shield-alt"></i>
+                                <span>Рейтинг честности: ${place.honesty_rating.toFixed(1)}/10</span>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            elements.resultsContainer.innerHTML = `
+                <h2 style="margin-bottom: 20px; color: #1e3a8a;">
+                    Найдено ${places.length} ${getPlaceText(places.length)} по запросу "${query}"
+                </h2>
+                ${placesHtml}
+            `;
+        }
+        
+        // Рендеринг детальной информации о заведении
+        function renderPlaceDetails(place) {
+            const honestReviews = place.honest_percentage || 0;
+            const botReviews = place.bot_percentage || 0;
+            
+            // Форматируем дату отзыва
+            const formatDate = (dateString) => {
+                try {
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString('ru-RU', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric'
+                    });
+                } catch {
+                    return dateString;
+                }
+            };
+            
+            // Генерация HTML для отзывов
+            const reviewsHtml = appState.currentReviews.length > 0 
+                ? appState.currentReviews.slice(0, appState.reviewsPerPage).map(review => `
+                    <div class="review-card">
+                        <div class="review-header">
+                            <div class="review-author">
+                                <div class="author-avatar">${review.author_initials || 'АН'}</div>
+                                <div class="author-info">
+                                    <div class="author-name">${review.author_name || 'Анонимный пользователь'}</div>
+                                    <div class="review-date">${formatDate(review.date)}</div>
+                                </div>
+                            </div>
+                            <div class="review-rating">
+                                <i class="fas fa-star"></i>
+                                <span>${review.rating?.toFixed(1) || '0.0'}</span>
+                            </div>
+                        </div>
+                        <div class="review-content">
+                            ${review.text || 'Без текста'}
+                        </div>
+                        <div class="review-stats">
+                            <div class="review-stat">
+                                <div class="stat-label">
+                                    <i class="fas fa-robot"></i>
+                                    <span>Вероятность генерации</span>
+                                </div>
+                                <div class="stat-value-bar">
+                                    <div class="stat-bar bot-stat" style="width: ${review.generation_prob || 0}%"></div>
+                                </div>
+                                <div class="stat-percentage bot-percentage">${review.generation_prob || 0}%</div>
+                            </div>
+                            <div class="review-stat">
+                                <div class="stat-label">
+                                    <i class="fas fa-check-circle"></i>
+                                    <span>Релевантность</span>
+                                </div>
+                                <div class="stat-value-bar">
+                                    <div class="stat-bar relevance-stat" style="width: ${review.relevance || 0}%"></div>
+                                </div>
+                                <div class="stat-percentage relevance-percentage">${review.relevance || 0}%</div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('')
+                : '<p>Отзывов пока нет</p>';
+            
+            elements.resultsContainer.innerHTML = `
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <h2>${place.name}</h2>
+                            ${place.chain_size ? `
+                                <div class="chain-info">${place.chain_size} ${getChainText(place.chain_size)} в сети</div>
+                            ` : ''}
+                        </div>
+                        <div class="address">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <span>${place.address}</span>
+                        </div>
+                        <div class="rating-badges">
+                            <div class="rating-badge">
+                                <i class="fas fa-star"></i>
+                                <span>Рейтинг Гугл карт: ${place.yandex_rating?.toFixed(1) || 'нет'}</span>
+                            </div>
+                            ${place.honest_rating ? `
+                            <div class="rating-badge">
+                                <i class="fas fa-check-circle"></i>
+                                <span>Честный рейтинг: ${place.honest_rating.toFixed(1)}</span>
+                            </div>
+                            ` : ''}
+                            ${place.honesty_rating ? `
+                            <div class="rating-badge">
+                                <i class="fas fa-shield-alt"></i>
+                                <span>Рейтинг честности: ${place.honesty_rating.toFixed(1)}/10</span>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    
+                    <div class="card-content">
+                        ${place.total_reviews ? `
+                        <div class="stats-grid">
+                            <div class="stat-box">
+                                <h3>Всего отзывов</h3>
+                                <div class="stat-value">${place.total_reviews}</div>
+                            </div>
+                            
+                            <div class="stat-box">
+                                <h3>Честные отзывы</h3>
+                                <div class="stat-value">${honestReviews}%</div>
+                                <div class="stat-description">${getHonestyDescription(honestReviews)}</div>
+                                <div class="progress-bar">
+                                    <div class="progress honest-progress" style="width: ${honestReviews}%"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="stat-box">
+                                <h3>Отзывы от ботов</h3>
+                                <div class="stat-value">${botReviews}%</div>
+                                <div class="stat-description">${getBotDescription(botReviews)}</div>
+                                <div class="progress-bar">
+                                    <div class="progress bot-progress" style="width: ${botReviews}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        ${place.controversial_reviews ? `
+                        <h3 class="section-title">Анализ отзывов</h3>
+                        <table class="reviews-table">
+                            <thead>
+                                <tr>
+                                    <th>Категория отзывов</th>
+                                    <th>Количество</th>
+                                    <th>Процент</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Честные отзывы</td>
+                                    <td>${Math.round(place.total_reviews * honestReviews / 100)}</td>
+                                    <td class="honest-cell">${honestReviews}%</td>
+                                </tr>
+                                <tr>
+                                    <td>Сгенерированные отзывы</td>
+                                    <td>${place.controversial_reviews.generated || 0}</td>
+                                    <td class="controversial-cell">${((place.controversial_reviews.generated / place.total_reviews) * 100 || 0).toFixed(1)}%</td>
+                                </tr>
+                                <tr>
+                                    <td>Отзывы от ботов</td>
+                                    <td>${place.controversial_reviews.bot || 0}</td>
+                                    <td class="controversial-cell">${botReviews}%</td>
+                                </tr>
+                                <tr>
+                                    <td>Предвзятые отзывы</td>
+                                    <td>${place.controversial_reviews.biased || 0}</td>
+                                    <td class="controversial-cell">${((place.controversial_reviews.biased / place.total_reviews) * 100 || 0).toFixed(1)}%</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        ` : ''}
+                        
+                        <div class="detailed-reviews">
+                            <h3 class="section-title">Детализация отзывов</h3>
+                            
+                            ${reviewsHtml}
+                            
+                            ${appState.currentReviews.length > appState.reviewsPerPage ? `
+                                <div class="reviews-controls">
+                                    <button class="reviews-btn" onclick="loadMoreReviews()">Показать еще</button>
+                                    <button class="reviews-btn" onclick="showAllReviews()">Все отзывы</button>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Вспомогательные функции для текста
+        function getChainText(count) {
+            if (!count) return 'заведений';
+            if (count % 10 === 1 && count % 100 !== 11) return 'заведение';
+            if ([2, 3, 4].includes(count % 10) && ![12, 13, 14].includes(count % 100)) return 'заведения';
+            return 'заведений';
+        }
+        
+        function getPlaceText(count) {
+            if (count % 10 === 1 && count % 100 !== 11) return 'заведение';
+            if ([2, 3, 4].includes(count % 10) && ![12, 13, 14].includes(count % 100)) return 'заведения';
+            return 'заведений';
+        }
+        
+        function getHonestyDescription(percentage) {
+            if (percentage >= 80) return 'очень высокая достоверность';
+            if (percentage >= 60) return 'высокая достоверность';
+            if (percentage >= 40) return 'средняя достоверность';
+            return 'низкая достоверность';
+        }
+        
+        function getBotDescription(percentage) {
+            if (percentage >= 30) return 'выше среднего';
+            if (percentage >= 20) return 'средний показатель';
+            return 'ниже среднего';
+        }
+        
+        // Функции для работы с отзывами
+        function loadMoreReviews() {
+            appState.currentPage++;
+            const endIndex = appState.currentPage * appState.reviewsPerPage;
+            const reviewsToShow = appState.currentReviews.slice(0, endIndex);
+            renderReviewsSection(reviewsToShow);
+        }
+        
+        function showAllReviews() {
+            renderReviewsSection(appState.currentReviews);
+        }
+        
+        function renderReviewsSection(reviews) {
+            const formatDate = (dateString) => {
+                try {
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString('ru-RU', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric'
+                    });
+                } catch {
+                    return dateString;
+                }
+            };
+            
+            const reviewsHtml = reviews.map(review => `
+                <div class="review-card">
+                    <div class="review-header">
+                        <div class="review-author">
+                            <div class="author-avatar">${review.author_initials || 'АН'}</div>
+                            <div class="author-info">
+                                <div class="author-name">${review.author_name || 'Анонимный пользователь'}</div>
+                                <div class="review-date">${formatDate(review.date)}</div>
+                            </div>
+                        </div>
+                        <div class="review-rating">
+                            <i class="fas fa-star"></i>
+                            <span>${review.rating?.toFixed(1) || '0.0'}</span>
+                        </div>
+                    </div>
+                    <div class="review-content">
+                        ${review.text || 'Без текста'}
+                    </div>
+                    <div class="review-stats">
+                        <div class="review-stat">
+                            <div class="stat-label">
+                                <i class="fas fa-robot"></i>
+                                <span>Вероятность генерации</span>
+                            </div>
+                            <div class="stat-value-bar">
+                                <div class="stat-bar bot-stat" style="width: ${review.generation_prob || 0}%"></div>
+                            </div>
+                            <div class="stat-percentage bot-percentage">${review.generation_prob || 0}%</div>
+                        </div>
+                        <div class="review-stat">
+                            <div class="stat-label">
+                                <i class="fas fa-check-circle"></i>
+                                <span>Релевантность</span>
+                            </div>
+                            <div class="stat-value-bar">
+                                <div class="stat-bar relevance-stat" style="width: ${review.relevance || 0}%"></div>
+                            </div>
+                            <div class="stat-percentage relevance-percentage">${review.relevance || 0}%</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            const reviewsSection = document.querySelector('.detailed-reviews');
+            if (reviewsSection) {
+                reviewsSection.innerHTML = `
+                    <h3 class="section-title">Детализация отзывов</h3>
+                    ${reviewsHtml}
+                    ${reviews.length < appState.currentReviews.length ? `
+                        <div class="reviews-controls">
+                            <button class="reviews-btn" onclick="showAllReviews()">Все отзывы</button>
+                        </div>
+                    ` : ''}
+                `;
+            }
+        }
+        
+        // Делаем функции глобальными для обработки событий в HTML
+        window.getPlaceDetails = getPlaceDetails;
+        window.loadMoreReviews = loadMoreReviews;
+        window.showAllReviews = showAllReviews;
+        
+        // Инициализация приложения при загрузке страницы
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
