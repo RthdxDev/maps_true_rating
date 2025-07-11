@@ -3,6 +3,8 @@ import os
 import sys
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
+# from starlette.middleware.cors import CORSMiddleware
+
 from func import search_places_by_name, get_place_details
 from typing import List, AsyncGenerator
 
@@ -51,6 +53,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 app = FastAPI(lifespan=lifespan)
 
+# Add CORS middleware configuration for local tests
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["*"],  # Allows all origins - adjust for production!
+#     allow_credentials=True,
+#     allow_methods=["*"],   # Allows all methods
+#     allow_headers=["*"],   # Allows all headers
+#     expose_headers=["*"]   # Expose all headers
+# )
+
 
 @app.get("/places/search", response_model=List[dict])
 async def search_by_name(
@@ -60,7 +72,7 @@ async def search_by_name(
     logger.debug(f"Search by name initiated - Name: '{name}', City: '{city}'")
     try:
         results = await search_places_by_name(name, city, limit=10)
-        logger.info(f"Search by name completed - Found {len(results)} results")
+        logger.info(f"Search by name completed - Found {len(results)} results") # type: ignore
         return results
     except Exception as e:
         logger.error(f"Search by name failed: {str(e)}", exc_info=True)

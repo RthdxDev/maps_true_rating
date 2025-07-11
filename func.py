@@ -22,7 +22,7 @@ async def get_connection() -> psycopg.AsyncConnection:
     )
 
 
-async def get_some_reviews(place_id: str, review_limit: int) -> list[dict[str, tp.Any]] | None:
+async def get_some_reviews(place_id: str, review_limit: int) -> tuple[float, list[dict[str, tp.Any]]]:
     """Fetch reviews for a place with ID"""
     conn = await get_connection()
     logger.debug(f"reviews for {place_id}")
@@ -31,6 +31,8 @@ async def get_some_reviews(place_id: str, review_limit: int) -> list[dict[str, t
             await cur.execute('SELECT * FROM reviews WHERE place_id = %s LIMIT %s;', (str(place_id), review_limit))
             raw_reviews = await cur.fetchall()
             cooked_reviews = []
+            total_weight = 0.0
+            weighted_sum = 0.0
             for review in raw_reviews:
                 await cur.execute('SELECT name FROM users WHERE id = %s;', (review['user_id'],))
                 user_result = await cur.fetchone()
@@ -38,9 +40,12 @@ async def get_some_reviews(place_id: str, review_limit: int) -> list[dict[str, t
                 review['author_initials'] = await get_initials(review['author_name'])
                 review['rating'] = review['score']
                 review['text'] = review['feedback']
-                review['generation_prob'] = review['llm_prob'] * 100
-                review['relevance'] = None  # TODO: Calculate relevance
-
+                review['generation_prob'] = round(review['llm_prob'] * 100, 2)
+                review['relevance'] = round(100*(1-review['llm_prob']/4) *
+                    (1-review['inept_prob']/2) *
+                    (1-review['spam_prob']/5), 2)
+                total_weight += review['relevance']
+                weighted_sum += review['rating'] * review['relevance']
                 # Cleanup unnecessary fields
                 for field in ['score', 'place_id', 'user_id', 'inept_prob',
                               'bot_prob', 'llm_prob', 'spam_prob', 'corrected_score']:
@@ -50,9 +55,11 @@ async def get_some_reviews(place_id: str, review_limit: int) -> list[dict[str, t
                 # Format date to ISO
                 review['date'] = review['date'].isoformat().replace('+00:00', 'Z')
                 cooked_reviews.append(review)
-            return cooked_reviews
+            honest_rating = round(weighted_sum / total_weight, 2) if total_weight else 0.0
+            return honest_rating, cooked_reviews
     except Exception as e:
         logger.error(f"Failed to fetch reviews: {str(e)}", exc_info=True)
+        return 0.0, []
     finally:
         await conn.close()
 
@@ -66,7 +73,7 @@ async def get_initials(name: str) -> str:
     return initials if initials else "АН"
 
 
-async def get_place_by_id(place_id: str, review_limit: int = 60) -> dict | None:
+async def get_place_by_id(place_id: str, review_limit: int = 30) -> dict | None:
     """Get detailed place information by ID"""
     conn = await get_connection()
     logger.debug(f"Start place by id for {place_id}")
@@ -85,11 +92,11 @@ async def get_place_by_id(place_id: str, review_limit: int = 60) -> dict | None:
 
             # Calculate metrics
             total_reviews = place_data['reviews_amount']
-            controversial_total = (
+            controversial_total = min((
                     place_data['llm_amount'] +
                     place_data['bot_amount'] +
                     place_data['inept_amount']
-            )
+            ), total_reviews)
 
             place_data['total_reviews'] = total_reviews
             place_data['controversial_reviews'] = {
@@ -99,10 +106,10 @@ async def get_place_by_id(place_id: str, review_limit: int = 60) -> dict | None:
             }
 
             # Calculate percentages
-            place_data['honest_percentage'] = round(
+            place_data['honest_percentage'] = max(round(
                 ((total_reviews - controversial_total) / total_reviews * 100)
                 if total_reviews else 0, 2
-            )
+            ), 0)
             place_data['bot_percentage'] = round(
                 (place_data['bot_amount'] / total_reviews * 100)
                 if total_reviews else 0, 2
@@ -113,13 +120,13 @@ async def get_place_by_id(place_id: str, review_limit: int = 60) -> dict | None:
                           'inept_amount', 'reviews_amount']:
                 del place_data[field]
 
-            # Prepare ratings
             place_data['yandex_rating'] = place_data['rating']
-            place_data['honest_rating'] = None  # TODO: Calculate from honest reviews
-            place_data['honesty_rating'] = None  # TODO: Implement honesty rating
+            # place_data['honesty_rating'] = None  # Implement honesty rating
 
             # Get reviews
-            place_data['reviews'] = await get_some_reviews(place_id, review_limit)
+            hones_rating, place_data['reviews'] = await get_some_reviews(place_id, review_limit)
+            place_data['honest_rating'] = hones_rating
+
             logger.debug(f"Place by id: {place_data}")
             return place_data
     except Exception as e:
@@ -149,7 +156,7 @@ async def search_places_by_name(name_query: str, city: str = "Санкт-Пет�
                     "SELECT id, chain_size FROM chains WHERE id = ANY(%s);",
                     (list(chain_ids),)
                 )
-                
+
                 chain_sizes = {row['id']: row['chain_size'] for row in await cur.fetchall()}
 
             # Prepare places with chain sizes
@@ -199,5 +206,4 @@ async def get_place_details(place_id: str) -> dict | None:
         return place_data
     logger.debug(f"{place_id} did not found")
     return None
-
 
